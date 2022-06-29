@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <link rel="stylesheet" href="https://pro.fontawesome.com/releases/v5.10.0/css/all.css" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
+
+    <style>
+        #list {
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .far {
+            line-height: unset
+        }
+
+        .dir,
+        .file {
+            cursor: pointer;
+        }
+
+        .file label {
+            display: flex;
+        }
+
+        .subdir {
+            padding-left: 10px;
+        }
+
+        .reqbtn {
+            float: right;
+            /* background: #f97434;
+      width: 110px;
+      height: 39px;
+      border-radius: 6px;
+      border-width: 0;
+      color: white;
+      font-size: 16px; */
+            cursor: pointer;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p"
+        crossorigin="anonymous"></script>
+
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+</head>
+
+<body>
+    <!-- <button id="button-rq" class="reqbtn btn btn-dark" data-bs-toggle="modal" data-bs-target="#exampleModal">Request
+  <div class="spinner-grow" role="status">
+  <span class="visually-hidden">Loading...</span>
+  </div>
+  </button> -->
+
+    <button id="button-rq" class="reqbtn  btn btn-dark" type="button" data-bs-toggle="modal"
+        data-bs-target="#exampleModal">
+        <div id="loading-show" style="display:none;"><span class="spinner-grow spinner-grow-sm" role="status"
+                aria-hidden="true"></span>
+            Loading...</div>
+        <div id="loading-hide">
+            Request files</div>
+    </button>
+
+    <div id="list" style="padding-left: 1rem;"></div>
+
+    <!-- <button type="button" onclick="requestFile();"  class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#exampleModal">
+    Launch demo modal
+  </button> -->
+    <div class="modal" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLabel">Confirmation</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Are you sure to request these files?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" onclick="requestFile();" class="btn btn-primary"
+                        data-bs-dismiss="modal">Yes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- <input type="checkbox " checked -->
+</body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/uuid/8.1.0/uuidv4.min.js"></script>
+
+<script>
+
+    window.top.postMessage(
+        JSON.stringify({
+            error: false,
+            message: "Hello World"
+        }),
+        '*'
+    );
+
+    let listData = null;
+    let defth = 0;
+    let selectedFiles = [];
+    const tcn = window.parent?.localStorage.getItem("token")
+    const imei = window.parent.location?.pathname.split("/")[3]
+
+
+    console.log("parent ---", window.location.origin)
+    // const uid = new ShortUniqueId({ length: 10 });
+
+    document.getElementById("loading-show").style = "display:none;";
+    document.getElementById("loading-hide").style = "display:block;"
+    document.getElementById("loading-show").style = "display:none;"
+
+
+    function closeDir(el) {
+        el.stopPropagation();
+
+        if (selectedFiles.length > 0) {
+            const response = confirm("Please make request! Otherwise all selection will lost");
+            if (!response) return;
+            unCheck();
+
+        }
+
+        const id = el.target.id;
+        const container = document.getElementById("lower-" + id);
+        container.innerHTML = "";
+        el.target.setAttribute("onclick", "openDir(event)");
+        document
+            .querySelector("#" + id + " .far")
+            .classList.remove("fa-folder-open");
+        document.querySelector("#" + id + " .far").classList.add("fa-folder");
+    }
+
+    function openDir(ev) {
+        ev.stopPropagation();
+        const id = ev.target.id;
+
+        document
+            .querySelector("#" + id + " .far")
+            .classList.add("fa-folder-open");
+        document.querySelector("#" + id + " .far").classList.remove("fa-folder");
+
+        const con = document.getElementById("lower-" + id);
+        ev.target.setAttribute("onclick", "closeDir(event)");
+        // if (con.childNodes.length > 1) {
+        //   console.log("you already open this");
+        //   con.innerHTML = null;
+        //   return;
+        // }
+
+        const defthx = id.split("--")[1];
+        const index = id.split("--")[2];
+        const indexes = index.split("-");
+
+        let stmt = "listData";
+
+        for (let i = 0; i <= parseInt(defthx); i++) {
+            stmt = stmt + ".subDir[" + indexes[i] + "]";
+        }
+        const subdir = eval(stmt + ".subDir");
+        if (subdir == undefined) return;
+        listDir(subdir, id, defthx, index, con);
+    }
+
+    function listDir(subdir, idx, defthx, index, con) {
+
+        listData &&
+            subdir.map((fl, i) => {
+                const idx =
+                    uuidv4() + "--" + (parseInt(defthx) + 1) + "--" + index + "-" + i;
+                con.insertAdjacentHTML(
+                    "beforeend",
+                    `<div
+                        class="dir"
+                        style="margin-top:5px; margin-left:10px;"
+                        id="id${idx}"
+                        onclick="openDir(event);"
+                    >
+                    <i class="far fa-folder"></i> ${fl.dirName}
+                        <div class="subdir" id="lower-id${idx}"></div>
+                    </div>`
+                );
+
+                listFile(fl?.files, con);
+            });
+            // listData &&
+            // files.map((fl, i) => {
+
+            // })
+            listFile(listData?.files, con);
+
+    }
+
+    function getFile(ev) {
+        // ev.stopPropagation();
+        const path = ev.id.slice(2);
+        if (selectedFiles.includes(path)) {
+            const newSlection = selectedFiles.filter((file) => file !== path);
+            selectedFiles = newSlection;
+        } else {
+            selectedFiles = [...selectedFiles, path];
+        }
+        // console.log("path", selectedFiles);
+    }
+
+    function listFile(files, con) {
+
+        if (files == undefined) return;
+        files.map((fl, i) => {
+            con.insertAdjacentHTML(
+                "beforeend",
+                `<div
+                    class="file"
+                        style="margin-top:5px; margin-left:15px;"
+                        onclick="event.stopPropagation();"
+                    >
+                        
+                        <label
+                        for="id${fl.path}"
+                        > 
+                        <i class="far fa-file" style="margin-right:5px;" style="line-height: unset;"></i>
+                        <input type="checkbox"  id="id${fl.path}" class="filecheck" style="margin-right:5px;" onclick="getFile(this);" />
+                        ${fl.fileName}
+                    </label>`
+            );
+
+            listFile(fl?.files, con);
+        });
+    }
+
+    function loadDoc() {
+
+        document.getElementById("list").innerHTML = "Loading..."
+        const xhttp = new XMLHttpRequest();
+        xhttp.onreadystatechange = function () {
+            if (this.readyState == 4 && this.status == 200) {
+                defth = 0;
+                listData = JSON.parse(this.responseText).files;
+                document.getElementById("list").innerHTML = "";
+                listData &&
+                    listData.subDir.map((fl, i) => {
+                        const id = uuidv4() + "--" + defth + "--" + i;
+                        document.getElementById("list").insertAdjacentHTML(
+                            "beforeend",
+                            `<div
+                                class="dir"
+                                style="margin-top:5px"
+                                id="id${id}"
+                                onclick="openDir(event);"
+                            >
+                                <i class="far fa-folder"></i> ${fl.dirName}
+                                <div class="subdir" id="lower-id${id}"></div>
+                            </div>`
+                        );
+                    });
+            }
+        };
+
+        xhttp.open("GET", window.location.origin + "/api/v0.0.1/admin/getFileListing?imei=" + imei);
+        //" + imei);
+        xhttp.setRequestHeader("X-Auth-Token", tcn)
+        xhttp.send();
+    }
+    loadDoc();
+
+    function unCheck() {
+        const allCheckboxes = document.getElementsByClassName("filecheck");
+        // console.log("all check", allCheckboxes);
+        for (let i = 0; i < allCheckboxes.length; i++) {
+            allCheckboxes[i].checked = false;
+        }
+        selectedFiles = []
+    }
+
+    function requestFile() {
+        console.log("requested file", selectedFiles);
+
+
+        if (selectedFiles.length < 1) {
+            alert("Please select at least one file!")
+            return
+        }
+        document.getElementById("loading-show").style = "display:block;"
+        document.getElementById("loading-hide").style = "display:none;"
+        ///api/v0.0.1/admin/getFiles
+        const xhttp = new XMLHttpRequest();
+        xhttp.onreadystatechange = function () {
+            if (this.readyState == 4 && this.status == 200) {
+                alert("your request successfully placed")
+                document.getElementById("loading-show").style = "display:none;"
+                document.getElementById("loading-hide").style = "display:block;"
+                unCheck()
+                window.top.postMessage(
+                    JSON.stringify({
+                        error: false,
+                        message: "Hello World"
+                    }),
+                    '*'
+                );
+                //document.getElementById("button-rq").value="Request"
+            }
+            if (this.status == 500) {
+                document.getElementById("loading-show").style = "display:none;"
+                document.getElementById("loading-hide").style = "display:block;"
+                alert("please try again")
+                //document.getElementById("button-rq").value="Request"
+
+            }
+        }
+        xhttp.open("POST", window.location.origin + "/api/v0.0.1/admin/getFiles");
+        xhttp.setRequestHeader("X-Auth-Token", tcn)
+
+        xhttp.setRequestHeader("Content-Type", "application/json")
+        const data = { imei: imei, filePaths: selectedFiles }
+        xhttp.send(JSON.stringify(data));
+
+    }
+</script>
+
+</html>
